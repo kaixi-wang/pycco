@@ -62,9 +62,21 @@ from pycco.languages import supported_languages
 from pycco_resources import css as pycco_css
 # This module contains all of our static resources.
 from pycco_resources import pycco_template
-
+# Custom Imports:
+import pprint
+import json
 # === Main Documentation Generation Functions ===
 
+def save_sections(sections, outdir, file_path):
+    """ Customized pycco to save section dictionary for using the parsed code and comments in Django
+
+    """
+    filename=file_path.split('.')[-2]
+    json_file_path=os.path.join(outdir, "sections/{}.json".format(filename))
+    os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
+    print("Saving sections to: ", json_file_path)
+    with open(json_file_path, 'w') as fp:
+        json.dump(sections, fp)
 
 def generate_documentation(source, outdir=None, preserve_paths=True,
                            language=None, encoding="utf8"):
@@ -86,6 +98,7 @@ def _generate_documentation(file_path, code, outdir, preserve_paths, language):
     """
     language = get_language(file_path, code, language_name=language)
     sections = parse(code, language)
+    save_sections(sections,outdir, file_path)
     highlight(sections, language, preserve_paths=preserve_paths, outdir=outdir)
     return generate_html(file_path, sections, preserve_paths=preserve_paths, outdir=outdir)
 
@@ -134,8 +147,7 @@ def parse(code, language):
         process_as_code = False
         # Only go into multiline comments section when one of the delimiters is
         # found to be at the start of a line
-        if multistart and multiend \
-           and any(line.lstrip().startswith(delim) or line.rstrip().endswith(delim)
+        if multistart and multiend  and any(line.lstrip().startswith(delim) or line.rstrip().endswith(delim)
                    for delim in (multistart, multiend)):
             multi_line = not multi_line
 
@@ -195,7 +207,8 @@ def parse(code, language):
             code_text += line + '\n'
 
     save(docs_text, code_text)
-
+    # pp = pprint.PrettyPrinter(indent=4)
+    # pp.pprint(sections)
     return sections
 
 # === Preprocessing the comments ===
@@ -302,6 +315,7 @@ def highlight(sections, language, preserve_paths=True, outdir=None):
                 'markdown.extensions.smarty',
                 'markdown.extensions.fenced_code',
                 'markdown.extensions.footnotes',
+                'markdown.extensions.sane_lists',
             ]
         )
         section["num"] = i
@@ -318,7 +332,7 @@ def generate_html(source, sections, preserve_paths=True, outdir=None):
     template found in `resources/pycco.html`.
 
     Pystache will attempt to recursively render context variables, so we must
-    replace any occurrences of `{{`, which is valid in some languages, with a
+    replace any occurences of `{{`, which is valid in some languages, with a
     "unique enough" identifier before rendering, and then post-process the
     rendered template and change the identifier back to `{{`.
     """
@@ -498,9 +512,13 @@ def process(sources, preserve_paths=True, outdir=None, language=None,
     # Proceed to generating the documentation.
     if sources:
         outdir = ensure_directory(outdir)
-        css = open(path.join(outdir, "pycco.css"), "wb")
-        css.write(pycco_css.encode(encoding))
-        css.close()
+        if not os.path.exists(path.join(outdir, "pycco.css")):
+            print("GENERATING CSS FILE")
+            css = open(path.join(outdir, "pycco.css"), "wb")
+            css.write(pycco_css.encode(encoding))
+            css.close()
+        else:
+            print("USING EXISTING CSS FILE: ", path.join(outdir, "pycco.css"))
 
         generated_files = []
 
@@ -568,6 +586,9 @@ def monitor(sources, opts):
             # the command line. Watchdog monitors whole directories, so other
             # files may cause notifications as well.
             if event.src_path in absolute_sources:
+
+                # print("Regenerating ", event.src_path)
+
                 process([absolute_sources[event.src_path]],
                         outdir=opts.outdir,
                         preserve_paths=opts.paths)
@@ -644,5 +665,6 @@ def main():
 
 
 # Run the script.
+# pycco -p lib/*.py -d pycco_output --watch -i -s
 if __name__ == "__main__":
     main()

@@ -8,10 +8,16 @@ from os import path
 from pycco.compat import compat_items
 from pycco_resources import pycco_template
 
+import json # not in original src
 
 __all__ = ('generate_index',)
 
-
+def save_tree(tree, outdir):
+    """ Customized pycco to save dictionary for using the parsed code and comments in Django """
+    json_file_path=path.join(outdir, "_index.json")
+    print("Saving raw index to: ", json_file_path)
+    with open(json_file_path, 'w') as fp:
+        json.dump(tree, fp)
 def build_tree(file_paths, outdir):
     tree = {}
     for file_path in file_paths:
@@ -21,7 +27,7 @@ def build_tree(file_paths, outdir):
         }
         path_steps = entry['relpath'].split(path.sep)
         add_file(entry, path_steps, tree)
-
+    save_tree(tree, outdir)
     return tree
 
 
