@@ -1,5 +1,5 @@
 customized pycco (modified/fixed css and added entrypoints to output code and comments only as json)
-preview results at [https://wang.works/code]
+preview results at [https://wang.works/portfolio/code/]
 ```
 888888b.
 888   Y88b
